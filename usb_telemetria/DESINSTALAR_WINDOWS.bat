@@ -1,11 +1,11 @@
 @echo off
-chcp 65001 >nul 2>&1
+setlocal
 title Desinstalar Agente de Telemetria - Windows
 
 echo.
-echo  ======================================================
-echo   DESINSTALAR AGENTE DE TELEMETRÍA (WINDOWS)
-echo  ======================================================
+echo ======================================================
+echo  DESINSTALAR AGENTE DE TELEMETRIA (WINDOWS)
+echo ======================================================
 echo.
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^

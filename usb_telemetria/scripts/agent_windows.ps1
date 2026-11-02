@@ -1,5 +1,5 @@
 # ==========================================================
-#  AGENTE DE TELEMETRÍA USB — WINDOWS (CERO ARCHIVOS PREVIOS)
+#  AGENTE DE TELEMETRIA USB - WINDOWS (CERO ARCHIVOS PREVIOS)
 #  Funciona con el PowerShell nativo de Windows (sin Python)
 # ==========================================================
 
@@ -9,15 +9,15 @@ param (
 )
 
 if (-not $Silent) {
-    $Host.UI.RawUI.WindowTitle = "Hardware Resilient — Agente USB Telemetria"
+    $Host.UI.RawUI.WindowTitle = "Hardware Resilient - Agente USB Telemetria"
     Write-Host ""
     Write-Host "  ======================================================" -ForegroundColor Cyan
-    Write-Host "   CONECTOR USB DE HARDWARE RESILIENTE — NEON CLOUD    " -ForegroundColor Green
+    Write-Host "   CONECTOR USB DE HARDWARE RESILIENTE - NEON CLOUD    " -ForegroundColor Green
     Write-Host "  ======================================================" -ForegroundColor Cyan
     Write-Host ""
 }
 
-# 1. Leer Configuración
+# 1. Leer Configuracion
 $ServerUrl = "http://192.168.100.36:3000"
 $ReportInterval = 5
 
@@ -44,7 +44,7 @@ if (-not $Silent) {
     Write-Host ""
 }
 
-# 2. Probar conexión al backend
+# 2. Probar conexion al backend
 try {
     $health = Invoke-RestMethod -Uri "$ServerUrl/api/health" -Method Get -TimeoutSec 5 -ErrorAction Stop
     if (-not $Silent) {
@@ -122,10 +122,10 @@ try {
     }
 }
 
-# 5. Modo de Instalación (Preguntar solo si es interactivo)
+# 5. Modo de Instalacion (Preguntar solo si es interactivo)
 if (-not $Silent) {
     Write-Host ""
-    Write-Host "  ¿Como deseas conectar este equipo a la telemetria?" -ForegroundColor Yellow
+    Write-Host "  Como deseas conectar este equipo a la telemetria?" -ForegroundColor Yellow
     Write-Host "  [1] Permanente en Segundo Plano (Recomendado: Puedes retirar la USB, reporta 24/7)" -ForegroundColor White
     Write-Host "  [2] Temporal (En vivo en esta ventana mientras la USB este conectada)" -ForegroundColor White
     Write-Host ""
@@ -148,7 +148,7 @@ WshShell.Run "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Byp
 "@
         Set-Content -Path "$installDir\launcher.vbs" -Value $vbsCode -Encoding ASCII
         
-        # Acceso directo en la carpeta de Inicio de Windows (arranca solo al prender el PC)
+        # Acceso directo en la carpeta de Inicio de Windows
         $startupFolder = [Environment]::GetFolderPath('Startup')
         $shortcutPath = "$startupFolder\HardwareResilient.lnk"
         $wsh = New-Object -ComObject WScript.Shell
@@ -159,13 +159,13 @@ WshShell.Run "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Byp
         $shortcut.WindowStyle = 7
         $shortcut.Save()
         
-        # Detener procesos viejos si existían y lanzar el nuevo
+        # Detener procesos viejos si existian y lanzar el nuevo
         Get-Process powershell -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*HardwareResilient*" } | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Process "wscript.exe" -ArgumentList "`"$installDir\launcher.vbs`""
         
         Write-Host ""
         Write-Host "  ======================================================" -ForegroundColor Green
-        Write-Host "   ¡EQUIPO AGREGADO A LA TELEMETRIA CON EXITO!           " -ForegroundColor Green
+        Write-Host "   EQUIPO AGREGADO A LA TELEMETRIA CON EXITO!           " -ForegroundColor Green
         Write-Host "  ======================================================" -ForegroundColor Green
         Write-Host "  [OK] El computador ya esta enviando telemetria a Neon en segundo plano." -ForegroundColor Cyan
         Write-Host "  [OK] YA PUEDES RETIRAR LA MEMORIA USB." -ForegroundColor Yellow
@@ -182,7 +182,7 @@ WshShell.Run "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Byp
     Write-Host ""
 }
 
-# 6. Bucle continuo de Telemetría
+# 6. Bucle continuo de Telemetria
 $step = 0
 while ($true) {
     try {
@@ -225,7 +225,7 @@ while ($true) {
         if (-not $Silent) {
             $timeStr = (Get-Date).ToString("HH:mm:ss")
             $step++
-            Write-Host "  [$timeStr #$step] -> CPU: $cpu% | RAM: $ramUsage% | Disco: $diskUsage% | Temp: $temp`°C -> [GUARDADO EN NEON]" -ForegroundColor Cyan
+            Write-Host "  [$timeStr #$step] -> CPU: $cpu% | RAM: $ramUsage% | Disco: $diskUsage% | Temp: ${temp}C -> [GUARDADO EN NEON]" -ForegroundColor Cyan
         }
     } catch {
         if (-not $Silent) {
