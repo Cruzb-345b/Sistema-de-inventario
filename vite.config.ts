@@ -7,8 +7,8 @@ export default defineConfig(() => {
   return {
     base: './',
     plugins: [react(), tailwindcss()],
-    resolve: {
 
+    resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
