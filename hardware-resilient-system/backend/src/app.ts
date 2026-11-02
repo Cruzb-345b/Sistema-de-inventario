@@ -1,11 +1,13 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import deviceRoutes from './routes/device.routes';
+import { DeviceController } from './controllers/device.controller';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticateNeonUser, getAuthStatus } from './middleware/auth.middleware';
 
 export function createApp(): Application {
   const app: Application = express();
+  const deviceController = new DeviceController();
 
   // Security and core middleware
   app.use(cors({ origin: true, credentials: true }));
@@ -32,6 +34,12 @@ export function createApp(): Application {
 
   // Device & telemetry API routes
   app.use('/api/devices', deviceRoutes);
+
+  // Live telemetry feed endpoint
+  app.get('/api/telemetry/feed', (req: Request, res: Response, next: NextFunction) => {
+    deviceController.getTelemetryFeed(req, res, next);
+  });
+
 
   // Fallback 404 handler for unknown routes
   app.use((req: Request, res: Response) => {

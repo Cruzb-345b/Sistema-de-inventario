@@ -351,4 +351,39 @@ export class DeviceController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/telemetry/feed
+   * Returns recent telemetry logs across all devices for live stream display
+   */
+  public async getTelemetryFeed(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const limit = Math.min(Math.max(1, Number(req.query.limit) || 25), 100);
+
+      const logs = await prisma.telemetryLog.findMany({
+        take: limit,
+        orderBy: { recordedAt: 'desc' },
+        include: {
+          device: {
+            select: {
+              id: true,
+              serialNumber: true,
+              name: true,
+              location: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: logs,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
+

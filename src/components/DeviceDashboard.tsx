@@ -191,6 +191,38 @@ const INITIAL_DEVICES: HardwareDevice[] = [
   },
 ];
 
+interface ApiTelemetryLog {
+  id: string;
+  deviceId: string;
+  cpuUsage: number;
+  ramUsage: number;
+  diskUsage: number;
+  uptimeSeconds: number;
+  temperature?: number | null;
+  recordedAt: string;
+  device?: {
+    id: string;
+    serialNumber: string;
+    name: string;
+    location: string;
+    status: DeviceStatus;
+  };
+}
+
+interface ApiDevice {
+  id: string;
+  serialNumber: string;
+  name: string;
+  model: string;
+  ipAddress: string;
+  macAddress: string;
+  location: string;
+  status: DeviceStatus;
+  lastHeartbeat: string | null;
+  createdAt: string;
+  telemetryLogs?: ApiTelemetryLog[];
+}
+
 interface DeviceDashboardProps {
   onTriggerTestCrash?: () => void;
 }
@@ -204,16 +236,17 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedDevice, setSelectedDevice] = useState<HardwareDevice | null>(null);
+  const [telemetryFeed, setTelemetryFeed] = useState<ApiTelemetryLog[]>([]);
 
-  // Fetch devices from MySQL Backend API (port 4000)
+  // Fetch devices from Neon PostgreSQL Backend API (port 4000)
   const fetchDevices = React.useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:4000/api/devices?limit=100');
       if (res.ok) {
-        const json = await res.json();
+        const json = (await res.json()) as { success: boolean; data: ApiDevice[] };
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: HardwareDevice[] = json.data.map((d: any) => {
+          const mapped: HardwareDevice[] = json.data.map((d: ApiDevice) => {
             const latestLog = d.telemetryLogs?.[0];
             return {
               id: d.id,
@@ -232,7 +265,7 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
                     ramUsage: latestLog.ramUsage,
                     diskUsage: latestLog.diskUsage,
                     uptimeSeconds: latestLog.uptimeSeconds,
-                    temperature: latestLog.temperature,
+                    temperature: latestLog.temperature ?? undefined,
                     recordedAt: latestLog.recordedAt,
                   }
                 : {
@@ -242,9 +275,18 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
                     uptimeSeconds: 0,
                     recordedAt: new Date().toISOString(),
                   },
-              telemetryHistory: d.telemetryLogs || [],
+              telemetryHistory: (d.telemetryLogs || []).map((l) => ({
+                cpuUsage: l.cpuUsage,
+                ramUsage: l.ramUsage,
+                diskUsage: l.diskUsage,
+                uptimeSeconds: l.uptimeSeconds,
+                temperature: l.temperature ?? undefined,
+                recordedAt: l.recordedAt,
+              })),
             };
           });
+
+
           setDevices(mapped);
           setDbConnected(true);
           return;
@@ -258,9 +300,32 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
     }
   }, []);
 
+  // Fetch live telemetry stream from /api/telemetry/feed
+  const fetchTelemetryFeed = React.useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:4000/api/telemetry/feed?limit=25');
+      if (res.ok) {
+        const json = (await res.json()) as { success: boolean; data: ApiTelemetryLog[] };
+        if (json.success && Array.isArray(json.data)) {
+          setTelemetryFeed(json.data);
+        }
+      }
+    } catch {
+      // Non-blocking background telemetry sync
+    }
+  }, []);
+
+  // Continuous background polling for live telemetric resiliency
   React.useEffect(() => {
     fetchDevices();
-  }, [fetchDevices]);
+    fetchTelemetryFeed();
+    const timer = setInterval(() => {
+      fetchDevices();
+      fetchTelemetryFeed();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [fetchDevices, fetchTelemetryFeed]);
+
 
   // Modal & Form States
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -1158,32 +1223,50 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
           <div className="flex items-center space-x-2">
             <Activity className="w-3.5 h-3.5 text-gray-300" />
             <span className="text-xs font-mono font-bold uppercase text-gray-200 tracking-wider">
-              Agent Daemon Telemetry Feed (Simulated Background Worker)
+              Live Hardware Telemetry Feed ({telemetryFeed.length > 0 ? 'Neon Postgres Stream' : 'Daemon Activity'})
             </span>
           </div>
           <span className="text-[10px] font-mono text-gray-500">
-            Auto-scrolling stream | Capped backoff 60s
+            {telemetryFeed.length > 0 ? `${telemetryFeed.length} live records` : 'Auto-scrolling stream | Capped backoff 60s'}
           </span>
         </div>
-        <div className="bg-[#07090e] border border-gray-900 text-gray-300 p-3 font-mono text-[11px] rounded-none h-32 overflow-y-auto space-y-1">
-          {agentLogs.map((log) => (
-            <div key={log.id} className="flex space-x-2">
-              <span className="text-gray-600">[{log.time}]</span>
-              <span
-                className={
-                  log.type === 'warn'
-                    ? 'text-gray-300 font-semibold'
-                    : log.type === 'error'
-                    ? 'text-white underline'
-                    : 'text-gray-400'
-                }
-              >
-                {log.text}
-              </span>
-            </div>
-          ))}
+        <div className="bg-[#07090e] border border-gray-900 text-gray-300 p-3 font-mono text-[11px] rounded-none h-36 overflow-y-auto space-y-1">
+          {telemetryFeed.length > 0 ? (
+            telemetryFeed.slice(0, 20).map((log) => (
+              <div key={log.id} className="flex flex-wrap items-center space-x-2">
+                <span className="text-gray-600">[{new Date(log.recordedAt).toLocaleTimeString()}]</span>
+                <span className="text-gray-300 font-semibold">
+                  {log.device?.name || log.deviceId}:
+                </span>
+                <span className="text-gray-400">
+                  CPU: <span className="text-gray-200 font-mono">{log.cpuUsage}%</span> | RAM: <span className="text-gray-200 font-mono">{log.ramUsage}%</span> | Disk: <span className="text-gray-200 font-mono">{log.diskUsage}%</span> | Uptime: {Math.round(log.uptimeSeconds)}s
+                </span>
+                {log.temperature && (
+                  <span className="text-gray-400">| Temp: {log.temperature}°C</span>
+                )}
+              </div>
+            ))
+          ) : (
+            agentLogs.map((log) => (
+              <div key={log.id} className="flex space-x-2">
+                <span className="text-gray-600">[{log.time}]</span>
+                <span
+                  className={
+                    log.type === 'warn'
+                      ? 'text-gray-300 font-semibold'
+                      : log.type === 'error'
+                      ? 'text-white underline'
+                      : 'text-gray-400'
+                  }
+                >
+                  {log.text}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
+
 
       {/* Modal: Add Device with strict Zod Validation (Dark Theme) */}
       {showAddModal && (

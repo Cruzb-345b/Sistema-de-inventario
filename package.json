@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "dev:backend": "npm --prefix hardware-resilient-system/backend run dev",
+    "server": "tsx server.ts",
+    "prisma:migrate": "npm --prefix hardware-resilient-system/backend run prisma:migrate",
+    "prisma:generate": "npm --prefix hardware-resilient-system/backend run prisma:generate",
     "db:push": "npm --prefix hardware-resilient-system/backend run prisma:push",
     "db:seed": "npm --prefix hardware-resilient-system/backend run prisma:seed",
     "build": "vite build",
