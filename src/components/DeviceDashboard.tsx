@@ -1,4 +1,4 @@
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, ChangeEvent } from 'react';
 import Papa from 'papaparse';
 import { z } from 'zod';
 import {
@@ -26,6 +26,14 @@ import {
   Radio,
 } from 'lucide-react';
 import { getAuthHeaders } from '../lib/auth';
+import {
+  fetchAllDevices,
+  fetchLiveTelemetryFeed,
+  createDeviceRecord,
+  deleteDeviceRecord,
+  ApiDevice,
+  ApiTelemetryLog,
+} from '../lib/api';
 
 
 export type DeviceStatus = 'ONLINE' | 'OFFLINE' | 'DEGRADED' | 'MAINTENANCE';
@@ -112,125 +120,8 @@ export function desanitizeCsvCell(value: unknown): string {
   return str;
 }
 
-// Initial resilient seed data
-const INITIAL_DEVICES: HardwareDevice[] = [
-  {
-    id: 'dev-001',
-    serialNumber: 'SRV-RACK-089A',
-    name: 'Core Edge Router 01',
-    model: 'Dell PowerEdge R640',
-    ipAddress: '192.168.10.15',
-    macAddress: '00:1A:2B:3C:4D:01',
-    location: 'Datacenter A - Rack 04',
-    status: 'ONLINE',
-    lastHeartbeat: new Date().toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    telemetry: {
-      cpuUsage: 34.2,
-      ramUsage: 58.7,
-      diskUsage: 41.5,
-      uptimeSeconds: 846200,
-      temperature: 42.5,
-      recordedAt: new Date().toISOString(),
-    },
-    telemetryHistory: [],
-  },
-  {
-    id: 'dev-002',
-    serialNumber: 'SRV-STOR-112B',
-    name: 'Distributed Storage Node',
-    model: 'HP ProLiant DL380 Gen10',
-    ipAddress: '192.168.10.16',
-    macAddress: '00:1A:2B:3C:4D:02',
-    location: 'Datacenter A - Rack 05',
-    status: 'DEGRADED',
-    lastHeartbeat: new Date(Date.now() - 120000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    telemetry: {
-      cpuUsage: 94.6,
-      ramUsage: 91.2,
-      diskUsage: 89.4,
-      uptimeSeconds: 1420500,
-      temperature: 68.0,
-      recordedAt: new Date(Date.now() - 120000).toISOString(),
-    },
-    telemetryHistory: [],
-  },
-  {
-    id: 'dev-003',
-    serialNumber: 'SRV-GATE-994C',
-    name: 'Industrial Gateway Alpha',
-    model: 'Advantech UNO-2484G',
-    ipAddress: '192.168.20.5',
-    macAddress: '00:1A:2B:3C:4D:03',
-    location: 'Plant Substation 2',
-    status: 'MAINTENANCE',
-    lastHeartbeat: new Date(Date.now() - 3600000 * 4).toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
-    telemetry: {
-      cpuUsage: 0.0,
-      ramUsage: 0.0,
-      diskUsage: 22.0,
-      uptimeSeconds: 0,
-      temperature: 24.0,
-      recordedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    },
-    telemetryHistory: [],
-  },
-  {
-    id: 'dev-004',
-    serialNumber: 'SRV-SNSR-440D',
-    name: 'Telemetry Aggregator Hub',
-    model: 'Supermicro SuperServer',
-    ipAddress: '192.168.10.22',
-    macAddress: '00:1A:2B:3C:4D:04',
-    location: 'Datacenter B - Rack 01',
-    status: 'ONLINE',
-    lastHeartbeat: new Date().toISOString(),
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    telemetry: {
-      cpuUsage: 18.5,
-      ramUsage: 42.1,
-      diskUsage: 35.8,
-      uptimeSeconds: 294000,
-      temperature: 38.2,
-      recordedAt: new Date().toISOString(),
-    },
-    telemetryHistory: [],
-  },
-];
 
-interface ApiTelemetryLog {
-  id: string;
-  deviceId: string;
-  cpuUsage: number;
-  ramUsage: number;
-  diskUsage: number;
-  uptimeSeconds: number;
-  temperature?: number | null;
-  recordedAt: string;
-  device?: {
-    id: string;
-    serialNumber: string;
-    name: string;
-    location: string;
-    status: DeviceStatus;
-  };
-}
 
-interface ApiDevice {
-  id: string;
-  serialNumber: string;
-  name: string;
-  model: string;
-  ipAddress: string;
-  macAddress: string;
-  location: string;
-  status: DeviceStatus;
-  lastHeartbeat: string | null;
-  createdAt: string;
-  telemetryLogs?: ApiTelemetryLog[];
-}
 
 interface DeviceDashboardProps {
   onTriggerTestCrash?: () => void;
@@ -348,9 +239,9 @@ const TelemetryWaveformChart: React.FC<{
 };
 
 export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
-  // Core Component States
-  const [devices, setDevices] = useState<HardwareDevice[]>(INITIAL_DEVICES);
-  const [loading, setLoading] = useState<boolean>(false);
+  // Core Component States — starts empty, populated from Neon PostgreSQL
+  const [devices, setDevices] = useState<HardwareDevice[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -424,62 +315,54 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
     }, 300);
   };
 
-  // Fetch devices from Neon PostgreSQL Backend API (port 4000)
-  const fetchDevices = React.useCallback(async () => {
+  // Fetch devices from Neon PostgreSQL (API proxy or direct Neon SQL)
+  const fetchDevices = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await fetch('http://localhost:4000/api/devices?limit=100', {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
+      const data = await fetchAllDevices(getAuthHeaders());
+      if (Array.isArray(data)) {
+        const mapped: HardwareDevice[] = data.map((d: ApiDevice) => {
+          const latestLog = d.telemetryLogs?.[0];
+          return {
+            id: d.id,
+            serialNumber: d.serialNumber,
+            name: d.name,
+            model: d.model,
+            ipAddress: d.ipAddress,
+            macAddress: d.macAddress,
+            location: d.location,
+            status: d.status,
+            lastHeartbeat: d.lastHeartbeat || d.createdAt,
+            createdAt: d.createdAt,
+            telemetry: latestLog
+              ? {
+                  cpuUsage: Number(latestLog.cpuUsage),
+                  ramUsage: Number(latestLog.ramUsage),
+                  diskUsage: Number(latestLog.diskUsage),
+                  uptimeSeconds: Number(latestLog.uptimeSeconds),
+                  temperature: latestLog.temperature ?? undefined,
+                  recordedAt: String(latestLog.recordedAt),
+                }
+              : {
+                  cpuUsage: 0,
+                  ramUsage: 0,
+                  diskUsage: 0,
+                  uptimeSeconds: 0,
+                  recordedAt: d.createdAt,
+                },
+            telemetryHistory: (d.telemetryLogs || []).map((l) => ({
+              cpuUsage: Number(l.cpuUsage),
+              ramUsage: Number(l.ramUsage),
+              diskUsage: Number(l.diskUsage),
+              uptimeSeconds: Number(l.uptimeSeconds),
+              temperature: l.temperature ?? undefined,
+              recordedAt: String(l.recordedAt),
+            })),
+          };
+        });
 
-        const json = (await res.json()) as { success: boolean; data: ApiDevice[] };
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: HardwareDevice[] = json.data.map((d: ApiDevice) => {
-            const latestLog = d.telemetryLogs?.[0];
-            return {
-              id: d.id,
-              serialNumber: d.serialNumber,
-              name: d.name,
-              model: d.model,
-              ipAddress: d.ipAddress,
-              macAddress: d.macAddress,
-              location: d.location,
-              status: d.status,
-              lastHeartbeat: d.lastHeartbeat || d.createdAt,
-              createdAt: d.createdAt,
-              telemetry: latestLog
-                ? {
-                    cpuUsage: latestLog.cpuUsage,
-                    ramUsage: latestLog.ramUsage,
-                    diskUsage: latestLog.diskUsage,
-                    uptimeSeconds: latestLog.uptimeSeconds,
-                    temperature: latestLog.temperature ?? undefined,
-                    recordedAt: latestLog.recordedAt,
-                  }
-                : {
-                    cpuUsage: 15.0,
-                    ramUsage: 35.0,
-                    diskUsage: 25.0,
-                    uptimeSeconds: 0,
-                    recordedAt: new Date().toISOString(),
-                  },
-              telemetryHistory: (d.telemetryLogs || []).map((l) => ({
-                cpuUsage: l.cpuUsage,
-                ramUsage: l.ramUsage,
-                diskUsage: l.diskUsage,
-                uptimeSeconds: l.uptimeSeconds,
-                temperature: l.temperature ?? undefined,
-                recordedAt: l.recordedAt,
-              })),
-            };
-          });
-
-
-          setDevices(mapped);
-          setDbConnected(true);
-          return;
-        }
+        setDevices(mapped);
+        setDbConnected(true);
+        return;
       }
       setDbConnected(false);
     } catch {
@@ -489,18 +372,12 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
     }
   }, []);
 
-  // Fetch live telemetry stream from /api/telemetry/feed
-  const fetchTelemetryFeed = React.useCallback(async () => {
+  // Fetch live telemetry stream from Neon PostgreSQL
+  const fetchTelemetryFeed = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/telemetry/feed?limit=25', {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-
-        const json = (await res.json()) as { success: boolean; data: ApiTelemetryLog[] };
-        if (json.success && Array.isArray(json.data)) {
-          setTelemetryFeed(json.data);
-        }
+      const data = await fetchLiveTelemetryFeed(getAuthHeaders());
+      if (Array.isArray(data)) {
+        setTelemetryFeed(data);
       }
     } catch {
       // Non-blocking background telemetry sync
@@ -508,7 +385,7 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
   }, []);
 
   // Continuous background polling for live telemetric resiliency
-  React.useEffect(() => {
+  useEffect(() => {
     fetchDevices();
     fetchTelemetryFeed();
     const timer = setInterval(() => {
@@ -540,86 +417,15 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
     formulaDetections: number;
   } | null>(null);
 
-  // Live Agent Simulation State
-  const [isSimulatingAgent] = useState<boolean>(true);
-  const [agentLogs, setAgentLogs] = useState<
-    Array<{ id: string; time: string; text: string; type: 'info' | 'warn' | 'error' }>
-  >([
-    {
-      id: 'log-0',
-      time: new Date().toLocaleTimeString(),
-      text: 'Resilient Agent Worker daemon initialized. Telemetry loop active in dark mode.',
-      type: 'info',
-    },
-  ]);
-
-  // Error Boundary deliberately triggerable test state
-  const [shouldCrash] = useState<boolean>(false);
-  if (shouldCrash) {
-    throw new Error('Test Fault: Unhandled hardware bus exception triggered for ErrorBoundary validation.');
-  }
-
-  // Periodic Agent Telemetry Heartbeat Simulation
-  React.useEffect(() => {
-    if (!isSimulatingAgent) return;
-
-    const interval = setInterval(() => {
-      setDevices((prevDevices) => {
-        if (prevDevices.length === 0) return prevDevices;
-
-        const randomIndex = Math.floor(Math.random() * prevDevices.length);
-        const target = prevDevices[randomIndex];
-
-        if (target.status === 'MAINTENANCE' || target.status === 'OFFLINE') {
-          return prevDevices;
-        }
-
-        const deltaCpu = (Math.random() - 0.48) * 8;
-        const newCpu = Math.min(100, Math.max(2, +(target.telemetry.cpuUsage + deltaCpu).toFixed(1)));
-        const deltaRam = (Math.random() - 0.48) * 4;
-        const newRam = Math.min(100, Math.max(10, +(target.telemetry.ramUsage + deltaRam).toFixed(1)));
-        const newDisk = +(target.telemetry.diskUsage + (Math.random() > 0.95 ? 0.1 : 0)).toFixed(1);
-        const newTemp = +(35 + (newCpu * 0.35)).toFixed(1);
-
-        const isDegraded = newCpu > 90 || newRam > 92;
-        const updatedStatus: DeviceStatus = isDegraded ? 'DEGRADED' : 'ONLINE';
-
-        const updatedReading: TelemetryReading = {
-          cpuUsage: newCpu,
-          ramUsage: newRam,
-          diskUsage: newDisk,
-          uptimeSeconds: target.telemetry.uptimeSeconds + 5,
-          temperature: newTemp,
-          recordedAt: new Date().toISOString(),
-        };
-
-        const updatedDevice: HardwareDevice = {
-          ...target,
-          status: updatedStatus,
-          lastHeartbeat: new Date().toISOString(),
-          telemetry: updatedReading,
-          telemetryHistory: [updatedReading, ...(target.telemetryHistory || [])].slice(0, 15),
-        };
-
-        const nextList = [...prevDevices];
-        nextList[randomIndex] = updatedDevice;
-
-        setAgentLogs((prev) => [
-          {
-            id: `log-${Date.now()}`,
-            time: new Date().toLocaleTimeString(),
-            text: `[POST 201] Device ${target.serialNumber} reported: CPU ${newCpu}% | RAM ${newRam}% | Disk ${newDisk}%`,
-            type: isDegraded ? 'warn' : 'info',
-          },
-          ...prev.slice(0, 30),
-        ]);
-
-        return nextList;
-      });
-    }, 3500);
-
-    return () => clearInterval(interval);
-  }, [isSimulatingAgent]);
+  // Agent logs from real telemetry feed
+  const agentLogs = useMemo(() => {
+    return telemetryFeed.slice(0, 20).map((log) => ({
+      id: log.id,
+      time: new Date(log.recordedAt).toLocaleTimeString(),
+      text: `[POST 201] Device ${log.device?.serialNumber || log.deviceId}: CPU ${log.cpuUsage}% | RAM ${log.ramUsage}% | Disk ${log.diskUsage}%`,
+      type: (log.cpuUsage > 90 || log.ramUsage > 92 ? 'warn' : 'info') as 'info' | 'warn' | 'error',
+    }));
+  }, [telemetryFeed]);
 
   // Filtered devices calculation
   const filteredDevices = useMemo(() => {
@@ -684,56 +490,27 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
       return;
     }
 
-    const newDevice: HardwareDevice = {
-      id: `dev-${Date.now().toString(36)}`,
-      serialNumber: formData.serialNumber.trim(),
-      name: formData.name.trim(),
-      model: formData.model.trim(),
-      ipAddress: formData.ipAddress.trim(),
-      macAddress: formData.macAddress.trim(),
-      location: formData.location.trim(),
-      status: formData.status,
-      lastHeartbeat: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      telemetry: {
-        cpuUsage: 12.0,
-        ramUsage: 35.0,
-        diskUsage: 20.0,
-        uptimeSeconds: 0,
-        temperature: 32.0,
-        recordedAt: new Date().toISOString(),
-      },
-      telemetryHistory: [],
-    };
-
-    // If connected to MySQL backend, persist via POST /api/devices
-    if (dbConnected) {
-      try {
-        const res = await fetch('http://localhost:4000/api/devices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            serialNumber: validated.serialNumber,
-            name: validated.name,
-            model: validated.model,
-            ipAddress: validated.ipAddress,
-            macAddress: validated.macAddress,
-            location: validated.location,
-            status: validated.status,
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data?.id) {
-            newDevice.id = json.data.id;
-          }
-        }
-      } catch (err) {
-        console.warn('MySQL backend unavailable, saving locally', err);
-      }
+    // Always persist to Neon PostgreSQL
+    try {
+      await createDeviceRecord({
+        serialNumber: validated.serialNumber,
+        name: validated.name,
+        model: validated.model,
+        ipAddress: validated.ipAddress,
+        macAddress: validated.macAddress,
+        location: validated.location,
+        status: validated.status,
+      });
+    } catch (err) {
+      console.warn('Neon write failed', err);
+      setFormErrors({
+        serialNumber: 'No se pudo conectar a Neon PostgreSQL.',
+      });
+      return;
     }
 
-    setDevices([newDevice, ...devices]);
+    // Refresh from Neon to get the real device
+    await fetchDevices();
     setShowAddModal(false);
     setFormData({
       serialNumber: '',
@@ -746,22 +523,18 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
     });
   };
 
-  // Handle Device Deletion with MySQL/Postgres sync
+  // Handle Device Deletion — always sync to Neon PostgreSQL
   const handleDeleteDevice = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (dbConnected) {
-      try {
-        await fetch(`http://localhost:4000/api/devices/${id}`, {
-          method: 'DELETE',
-        });
-      } catch (err) {
-        console.warn('Backend delete failed, deleting locally', err);
-      }
+    try {
+      await deleteDeviceRecord(id);
+    } catch (err) {
+      console.warn('Neon delete failed', err);
     }
-    setDevices(devices.filter((d) => d.id !== id));
     if (selectedDevice?.id === id) {
       setSelectedDevice(null);
     }
+    await fetchDevices();
   };
 
   // CSV Export with Formula Injection Neutralization
@@ -807,7 +580,7 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
         setLoading(false);
         const importedRows = results.data;
         let formulaDetections = 0;
-        const validNewDevices: HardwareDevice[] = [];
+        const validNewDevices: Array<z.infer<typeof DeviceFormSchema>> = [];
         const parseErrors: string[] = [];
 
         importedRows.forEach((row, index) => {
@@ -840,44 +613,38 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
           }
 
           const validData = validation.data;
-          validNewDevices.push({
-            id: `dev-csv-${Date.now()}-${index}`,
-            serialNumber: validData.serialNumber,
-            name: validData.name,
-            model: validData.model,
-            ipAddress: validData.ipAddress,
-            macAddress: validData.macAddress,
-            location: validData.location,
-            status: validData.status,
-            lastHeartbeat: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            telemetry: {
-              cpuUsage: Math.floor(Math.random() * 40 + 10),
-              ramUsage: Math.floor(Math.random() * 50 + 20),
-              diskUsage: Math.floor(Math.random() * 60 + 10),
-              uptimeSeconds: 3600,
-              temperature: 38.0,
-              recordedAt: new Date().toISOString(),
-            },
-            telemetryHistory: [],
-          });
+          validNewDevices.push(validData);
         });
 
-        if (validNewDevices.length > 0) {
-          setDevices((current) => {
-            const map = new Map<string, HardwareDevice>();
-            current.forEach((d) => map.set(d.serialNumber.toLowerCase(), d));
-            validNewDevices.forEach((d) => map.set(d.serialNumber.toLowerCase(), d));
-            return Array.from(map.values());
-          });
-        }
+        // Persist all validated devices to Neon PostgreSQL
+        (async () => {
+          let savedCount = 0;
+          for (const item of validNewDevices) {
+            try {
+              await createDeviceRecord({
+                serialNumber: item.serialNumber,
+                name: item.name,
+                model: item.model,
+                ipAddress: item.ipAddress,
+                macAddress: item.macAddress,
+                location: item.location,
+                status: item.status,
+              });
+              savedCount++;
+            } catch {
+              // Ignore single item network error
+            }
+          }
 
-        setImportSummary({
-          total: importedRows.length,
-          success: validNewDevices.length,
-          errors: parseErrors,
-          formulaDetections,
-        });
+          await fetchDevices();
+
+          setImportSummary({
+            total: importedRows.length,
+            success: savedCount,
+            errors: parseErrors,
+            formulaDetections,
+          });
+        })();
 
         event.target.value = '';
       },
@@ -1772,14 +1539,6 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
               type="button"
               onClick={() => {
                 setTelemetryFeed([]);
-                setAgentLogs([
-                  {
-                    id: `log-${Date.now()}`,
-                    time: new Date().toLocaleTimeString(),
-                    text: 'Terminal limpiado por el operador.',
-                    type: 'info',
-                  },
-                ]);
               }}
               className="text-gray-400 hover:text-white cursor-pointer underline text-[10px]"
             >

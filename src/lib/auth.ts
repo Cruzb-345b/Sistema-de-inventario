@@ -1,4 +1,5 @@
 import { createAuthClient } from '@neon/auth';
+import { apiUrl } from './api';
 
 const authUrl =
   (typeof import.meta !== 'undefined' &&
@@ -64,7 +65,7 @@ export async function loginWithCredentials(
 ): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
   // 1. First attempt login through the backend API
   try {
-    const res = await fetch('http://localhost:4000/api/auth/login', {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -130,7 +131,7 @@ export async function registerWithCredentials(
   role: 'ADMIN' | 'OPERATOR' | 'AUDITOR' = 'OPERATOR'
 ): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
   try {
-    const res = await fetch('http://localhost:4000/api/auth/register', {
+    const res = await fetch(apiUrl('/api/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password, role }),

@@ -11,18 +11,19 @@
     "prisma:generate": "npm --prefix hardware-resilient-system/backend run prisma:generate",
     "db:push": "npm --prefix hardware-resilient-system/backend run prisma:push",
     "db:seed": "npm --prefix hardware-resilient-system/backend run prisma:seed",
+    "db:verify": "node verify_neon.mjs",
     "build": "vite build",
     "deploy": "vite build && cp dist/index.html dist/404.html && touch dist/.nojekyll && gh-pages -d dist",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
-
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@neon/auth": "^0.8.2",
     "@neon/config": "^1.10.0",
     "@neon/env": "^1.6.8",
+    "@neondatabase/serverless": "^1.2.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
@@ -43,6 +44,7 @@
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.0",
+    "gh-pages": "^6.3.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"
