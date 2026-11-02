@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de equipos · Colegio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f3f4f6;--card:#fff;--line:#e3e6eb;--text:#2b2f36;--muted:#7b818c;--dark:#3d434d;--soft:#eef0f3}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+.hidden{display:none!important}
+.muted{color:var(--muted);font-size:13px}
+
+/* Login */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:36px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
+.login-card h1{font-size:22px}
+.login-card small{text-align:center}
+
+/* Formularios */
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--text);background:#fafbfc;border:1px solid var(--line);border-radius:8px;padding:9px 11px;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:#9aa1ac;background:#fff}
+
+/* Botones */
+.btn{background:var(--dark);color:#fff;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{background:#2b2f36}
+.btn-block{width:100%}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;font:inherit;font-size:13px;white-space:nowrap}
+.btn-ghost:hover{background:var(--soft)}
+.btn-ghost.danger{color:#7a4b4b}
+.icon-btn{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)}
+
+/* Estructura */
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:22px 14px;position:sticky;top:0;height:100vh}
+.brand{font-weight:700;font-size:16px;padding:6px 10px 22px}
+.brand small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:2px}
+nav{display:flex;flex-direction:column;gap:3px}
+.nav-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 12px;border-radius:8px;cursor:pointer;font:inherit;color:#555c67}
+.nav-btn:hover{background:var(--soft)}
+.nav-btn.active{background:var(--dark);color:#fff}
+.sidebar-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);gap:8px}
+main{flex:1;padding:28px 34px;min-width:0}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.page-head h1{font-size:24px;font-weight:650}
+.page-head p{color:var(--muted);font-size:14px;margin-top:4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{width:240px}
+
+/* Tarjetas y tablas */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card h3{font-size:15px;font-weight:600;margin-bottom:14px}
+.table-wrap{padding:0;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;padding:12px 14px;border-bottom:1px solid var(--line);background:#fafbfc;white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid #f0f1f4;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td.empty{text-align:center;color:var(--muted);padding:30px}
+.desc{max-width:340px;color:#555c67}
+.acciones{display:flex;gap:6px;justify-content:flex-end;white-space:nowrap}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff;white-space:nowrap}
+.b-ok{background:var(--dark);color:#fff;border-color:var(--dark)}
+.b-mid{background:#e4e7ec;border-color:#e4e7ec}
+.b-bad{border:1px dashed #6b717c}
+.b-off{background:#f5f6f8;color:#9aa0a9}
+.tag{background:var(--soft);padding:3px 9px;border-radius:6px;font-size:12px}
+
+/* Panel */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.stat span{color:var(--muted);font-size:13px}
+.stat strong{display:block;font-size:28px;margin-top:6px;font-weight:650}
+.charts{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-bottom:14px}
+.chart-box{position:relative;height:270px}
+@media(max-width:900px){.charts{grid-template-columns:1fr}}
+
+/* Estado */
+.state-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.state-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:left;cursor:pointer;font:inherit;color:var(--text)}
+.state-card span{display:block;color:var(--muted);font-size:13px}
+.state-card strong{font-size:24px;font-weight:650}
+.state-card.active{border-color:var(--dark);box-shadow:inset 0 0 0 1px var(--dark)}
+
+/* Ubicación */
+.loc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.loc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.loc-head h3{margin:0;font-size:15px}
+.loc-head span{font-size:12px;color:var(--muted)}
+.loc-card ul{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.loc-card li{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+
+/* Modal y avisos */
+.modal{position:fixed;inset:0;background:rgba(30,33,38,.35);display:grid;place-items:center;padding:20px;z-index:50}
+.modal-box{background:#fff;border-radius:14px;width:100%;max-width:620px;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+.modal-head h2{font-size:17px}
+#modalForm{padding:20px 22px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid .full{grid-column:1/-1}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:0 22px 20px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:#fff;padding:12px 18px;border-radius:9px;font-size:14px;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;z-index:60}
+.toast.show{opacity:1;transform:none}
+.toast.err{background:#6b4a4a}
+
+/* Móvil */
+@media(max-width:800px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static}
+  nav{flex-direction:row;flex-wrap:wrap}
+  .nav-btn{width:auto}
+  main{padding:20px}
+  .search{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="login">
+  <form class="login-card" id="loginForm">
+    <h1>Control de equipos</h1>
+    <p class="muted">Sistema de inventario · Colegio</p>
+    <label>Usuario<input id="lUser" autocomplete="username" required></label>
+    <label>Contraseña<input id="lPass" type="password" autocomplete="current-password" required></label>
+    <button class="btn btn-block" type="submit">Ingresar</button>
+    <small class="muted">Acceso de prueba: admin / 1234</small>
+  </form>
+</section>
+
+<!-- APP -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand">Control de equipos<small>Colegio</small></div>
+    <nav>
+      <button class="nav-btn" data-view="dashboard">Panel general</button>
+      <button class="nav-btn" data-view="equipos">Equipos</button>
+      <button class="nav-btn" data-view="estado">Estado</button>
+      <button class="nav-btn" data-view="ubicacion">Ubicación</button>
+      <button class="nav-btn" data-view="mantenimiento">Mantenimientos</button>
+      <button class="nav-btn" data-view="usuarios">Usuarios</button>
+    </nav>
+    <div class="sidebar-foot"><span id="userLabel"></span><button class="btn-ghost" id="logoutBtn">Salir</button></div>
+  </aside>
+
+  <main>
+    <section id="view-dashboard" class="view">
+      <header class="page-head"><div><h1>Panel general</h1><p>Resumen del estado de los equipos del colegio.</p></div></header>
+      <div class="stats" id="stats"></div>
+      <div class="charts">
+        <div class="card"><h3>Equipos por estado</h3><div class="chart-box"><canvas id="chartEstado"></canvas></div></div>
+        <div class="card"><h3>Mantenimientos de los últimos 6 meses</h3><div class="chart-box"><canvas id="chartMant"></canvas></div></div>
+      </div>
+      <div class="card"><h3>Equipos por ubicación</h3><div class="chart-box"><canvas id="chartUbic"></canvas></div></div>
+    </section>
+
+    <section id="view-equipos" class="view hidden"></section>
+    <section id="view-estado" class="view hidden"></section>
+    <section id="view-ubicacion" class="view hidden"></section>
+    <section id="view-mantenimiento" class="view hidden"></section>
+    <section id="view-usuarios" class="view hidden"></section>
+  </main>
+</div>
+
+<div class="modal hidden" id="modal">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="modalTitle"></h2><button class="icon-btn" id="modalClose" type="button">×</button></div>
+    <form id="modalForm">
+      <div class="form-grid" id="modalBody"></div>
+      <div class="modal-foot">
+        <button class="btn-ghost" type="button" id="modalCancel">Cancelar</button>
+        <button class="btn" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'inventario_colegio_v1';
+const LOGIN = { user: 'admin', pass: '1234' };
+const ESTADOS = ['Operativo', 'En mantenimiento', 'Dañado', 'Dado de baja'];
+const TIPOS_EQ = ['Escritorio', 'Portátil', 'Todo en uno', 'Tableta'];
+const UBICACIONES = ['Sala de sistemas 1', 'Sala de sistemas 2', 'Biblioteca', 'Dirección', 'Laboratorio de idiomas', 'Sala de docentes'];
+const TIPOS_MANT = ['Preventivo', 'Correctivo'];
+const ROLES = ['Docente', 'Administrativo', 'Estudiante', 'Coordinador'];
+const BADGE = { 'Operativo': 'b-ok', 'En mantenimiento': 'b-mid', 'Dañado': 'b-bad', 'Dado de baja': 'b-off' };
+
+const SCHEMAS = {
+  equipos: { title: 'Equipo', fields: [
+    { k: 'codigo', label: 'Código', type: 'text', required: true },
+    { k: 'tipo', label: 'Tipo', type: 'select', options: TIPOS_EQ },
+    { k: 'marca', label: 'Marca', type: 'text' },
+    { k: 'modelo', label: 'Modelo', type: 'text' },
+    { k: 'serie', label: 'N.º de serie', type: 'text' },
+    { k: 'ubicacion', label: 'Ubicación', type: 'list', options: UBICACIONES },
+    { k: 'responsable', label: 'Usuario responsable', type: 'select', optionsFn: () => db.usuarios.map(u => u.nombre) },
+    { k: 'estado', label: 'Estado', type: 'select', options: ESTADOS, required: true },
+    { k: 'fechaCompra', label: 'Fecha de compra', type: 'date' },
+    { k: 'notas', label: 'Observaciones', type: 'textarea' }
+  ]},
+  mantenimiento: { title: 'Mantenimiento', fields: [
+    { k: 'equipo', label: 'Código del equipo', type: 'select', optionsFn: () => db.equipos.map(e => e.codigo), required: true },
+    { k: 'fecha', label: 'Fecha', type: 'date', required: true },
+    { k: 'tipo', label: 'Tipo', type: 'select', options: TIPOS_MANT, required: true },
+    { k: 'tecnico', label: 'Técnico responsable', type: 'text' },
+    { k: 'costo', label: 'Costo (opcional)', type: 'number' },
+    { k: 'descripcion', label: 'Descripción del trabajo', type: 'textarea', required: true }
+  ]},
+  usuarios: { title: 'Usuario', fields: [
+    { k: 'nombre', label: 'Nombre completo', type: 'text', required: true },
+    { k: 'rol', label: 'Rol', type: 'select', options: ROLES, required: true },
+    { k: 'area', label: 'Área / Grado', type: 'text' },
+    { k: 'correo', label: 'Correo', type: 'email' }
+  ]}
+};
+
+const CSV_COLS = {
+  equipos: [['codigo','Código'],['tipo','Tipo'],['marca','Marca'],['modelo','Modelo'],['serie','N° de serie'],['ubicacion','Ubicación'],['responsable','Responsable'],['estado','Estado'],['fechaCompra','Fecha de compra'],['notas','Observaciones']],
+  mantenimiento: [['equipo','Equipo'],['fecha','Fecha'],['tipo','Tipo'],['tecnico','Técnico'],['costo','Costo'],['descripcion','Descripción']],
+  usuarios: [['nombre','Nombre'],['rol','Rol'],['area','Área'],['correo','Correo']]
+};
+
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+
+function seed() {
+  const usuarios = [
+    { id: uid(), nombre: 'Laura Gómez', rol: 'Docente', area: 'Matemáticas', correo: 'lgomez@colegio.edu' },
+    { id: uid(), nombre: 'Carlos Ruiz', rol: 'Administrativo', area: 'Secretaría', correo: 'cruiz@colegio.edu' },
+    { id: uid(), nombre: 'Ana Torres', rol: 'Estudiante', area: '10°A', correo: '' }
+  ];
+  const equipos = [
+    { id: uid(), codigo: 'PC-001', tipo: 'Escritorio', marca: 'Dell', modelo: 'OptiPlex 3090', serie: 'DL-88321', ubicacion: 'Sala de sistemas 1', responsable: 'Laura Gómez', estado: 'Operativo', fechaCompra: '2023-02-15', notas: '' },
+    { id: uid(), codigo: 'PC-002', tipo: 'Escritorio', marca: 'HP', modelo: 'ProDesk 400', serie: 'HP-40012', ubicacion: 'Sala de sistemas 1', responsable: 'Laura Gómez', estado: 'En mantenimiento', fechaCompra: '2022-08-10', notas: '' },
+    { id: uid(), codigo: 'PC-014', tipo: 'Portátil', marca: 'Lenovo', modelo: 'ThinkPad E14', serie: 'LN-77120', ubicacion: 'Biblioteca', responsable: 'Ana Torres', estado: 'Dañado', fechaCompra: '2024-01-20', notas: 'Batería inflada' },
+    { id: uid(), codigo: 'PC-021', tipo: 'Todo en uno', marca: 'HP', modelo: 'All-in-One 22', serie: '', ubicacion: 'Dirección', responsable: 'Carlos Ruiz', estado: 'Operativo', fechaCompra: '2024-06-03', notas: '' },
+    { id: uid(), codigo: 'PC-030', tipo: 'Escritorio', marca: 'Acer', modelo: 'Veriton X', serie: '', ubicacion: 'Laboratorio de idiomas', responsable: '', estado: 'Dado de baja', fechaCompra: '2016-03-01', notas: 'Obsoleto' },
+    { id: uid(), codigo: 'PC-035', tipo: 'Portátil', marca: 'Asus', modelo: 'VivoBook 15', serie: '', ubicacion: 'Sala de docentes', responsable: 'Laura Gómez', estado: 'Operativo', fechaCompra: '2025-02-11', notas: '' }
+  ];
+  const mantenimiento = [
+    { id: uid(), equipo: 'PC-002', fecha: '2026-10-12', tipo: 'Correctivo', tecnico: 'Carlos Ruiz', costo: '85000', descripcion: 'Reemplazo de disco duro y reinstalación del sistema' },
+    { id: uid(), equipo: 'PC-001', fecha: '2026-09-03', tipo: 'Preventivo', tecnico: 'Soporte TI', costo: '', descripcion: 'Limpieza interna y actualización de antivirus' },
+    { id: uid(), equipo: 'PC-014', fecha: '2026-08-20', tipo: 'Correctivo', tecnico: 'Soporte TI', costo: '45000', descripcion: 'Revisión de batería y cargador' }
+  ];
+  return { equipos, mantenimiento, usuarios };
+}
+
+let db = JSON.parse(localStorage.getItem(KEY)) || seed();
+const save = () => localStorage.setItem(KEY, JSON.stringify(db));
+
+const el = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const count = (arr, fn) => arr.reduce((m, x) => { const k = fn(x); m[k] = (m[k] || 0) + 1; return m; }, {});
+const badge = s => `<span class="badge ${BADGE[s] || ''}">${esc(s || 'Sin estado')}</span>`;
+
+function toast(msg, err = false) {
+  const t = el('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.className = 'toast', 2400);
+}
+
+function toolbar({ title, sub, tbl, exportEntity, newEntity }) {
+  return `<header class="page-head">
+    <div><h1>${title}</h1><p>${sub}</p></div>
+    <div class="actions">
+      ${tbl ? `<input class="search" placeholder="Buscar en la tabla…" data-filter-table="${tbl}">` : ''}
+      ${exportEntity ? `<button class="btn-ghost" data-export="${exportEntity}">Exportar CSV</button>` : ''}
+      ${newEntity ? `<button class="btn" data-new="${newEntity}">+ Nuevo</button>` : ''}
+    </div>
+  </header>`;
+}
+
+function table(id, headers, body) {
+  return `<div class="card table-wrap"><table id="${id}">
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${body || `<tr><td class="empty" colspan="${headers.length}">Sin registros todavía</td></tr>`}</tbody>
+  </table></div>`;
+}
+
+function actionsCell(entity, id) {
+  return `<div class="acciones">
+    <button class="btn-ghost" data-edit="${entity}" data-id="${id}">Editar</button>
+    <button class="btn-ghost danger" data-del="${entity}" data-id="${id}">Eliminar</button>
+  </div>`;
+}
+
+el('loginForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (el('lUser').value.trim() === LOGIN.user && el('lPass').value === LOGIN.pass) {
+    sessionStorage.setItem('auth', '1');
+    enter();
+  } else {
+    toast('Usuario o contraseña incorrectos', true);
+  }
+});
+
+el('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('auth');
+  location.reload();
+});
+
+document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+
+let currentView = 'dashboard';
+let estadoFiltro = 'Todos';
+
+function enter() {
+  el('login').classList.add('hidden');
+  el('app').classList.remove('hidden');
+  el('userLabel').textContent = 'Sesión: admin';
+  show('dashboard');
+}
+
+function show(view) {
+  currentView = view;
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('hidden', s.id !== 'view-' + view));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  RENDER[view]();
+}
+
+const charts = {};
+function draw(id, cfg) {
+  charts[id]?.destroy();
+  charts[id] = new Chart(el(id), cfg);
+}
+
+Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+Chart.defaults.color = '#6b717c';
+
+function renderDashboard() {
+  const eq = db.equipos, mant = db.mantenimiento;
+  const est = count(eq, e => e.estado);
+  const total = eq.length;
+
+  el('stats').innerHTML = [
+    ['Equipos registrados', total],
+    ['Operativos', total ? Math.round((est['Operativo'] || 0) / total * 100) + '%' : '0%'],
+    ['En mantenimiento', est['En mantenimiento'] || 0],
+    ['Dañados', est['Dañado'] || 0],
+    ['Mantenimientos registrados', mant.length]
+  ].map(([l, v]) => `<div class="stat"><span>${l}</span><strong>${v}</strong></div>`).join('');
+
+  draw('chartEstado', {
+    type: 'doughnut',
+    data: { labels: ESTADOS, datasets: [{ data: ESTADOS.map(s => est[s] || 0), backgroundColor: ['#3d434d', '#8a909a', '#c4c9d1', '#e6e9ee'], borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom' } } }
+  });
+
+  const meses = [];
+  const hoy = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    meses.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('es', { month: 'short', year: '2-digit' })
+    });
+  }
+  const contar = tipo => meses.map(m => mant.filter(x => x.tipo === tipo && (x.fecha || '').startsWith(m.key)).length);
+  draw('chartMant', {
+    type: 'bar',
+    data: {
+      labels: meses.map(m => m.label),
+      datasets: [
+        { label: 'Preventivo', data: contar('Preventivo'), backgroundColor: '#3d434d', borderRadius: 6 },
+        { label: 'Correctivo', data: contar('Correctivo'), backgroundColor: '#c4c9d1', borderRadius: 6 }
+      ]
+    },
+    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  const ubics = [...new Set(eq.map(e => e.ubicacion).filter(Boolean))];
+  draw('chartUbic', {
+    type: 'bar',
+    data: { labels: ubics, datasets: [{ label: 'Equipos', data: ubics.map(u => eq.filter(e => e.ubicacion === u).length), backgroundColor: '#6b717c', borderRadius: 6 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+function renderEquipos() {
+  const rows = db.equipos.map(e => `<tr>
+    <td><strong>${esc(e.codigo)}</strong></td>
+    <td>${esc(e.tipo)}</td>
+    <td>${esc(e.marca)} ${esc(e.modelo)}</td>
+    <td>${esc(e.ubicacion) || '—'}</td>
+    <td>${esc(e.responsable) || '—'}</td>
+    <td>${badge(e.estado)}</td>
+    <td>${actionsCell('equipos', e.id)}</td>
+  </tr>`).join('');
+
+  el('view-equipos').innerHTML =
+    toolbar({ title: 'Equipos', sub: 'Inventario de computadores del colegio.', tbl: 'tblEquipos', exportEntity: 'equipos', newEntity: 'equipos' }) +
+    table('tblEquipos', ['Código', 'Tipo', 'Marca / Modelo', 'Ubicación', 'Responsable', 'Estado', ''], rows);
+}
+
+function renderEstado() {
+  const counts = count(db.equipos, e => e.estado);
+  const cards = [...ESTADOS, 'Todos'].map(s => {
+    const n = s === 'Todos' ? db.equipos.length : (counts[s] || 0);
+    return `<button class="state-card ${estadoFiltro === s ? 'active' : ''}" data-filter-estado="${s}">
+      <span>${s}</span><strong>${n}</strong></button>`;
+  }).join('');
+
+  const lista = db.equipos.filter(e => estadoFiltro === 'Todos' || e.estado === estadoFiltro);
+  const rows = lista.map(e => `<tr>
+    <td><strong>${esc(e.codigo)}</strong></td>
+    <td>${esc(e.ubicacion) || '—'}</td>
+    <td>${esc(e.responsable) || '—'}</td>
+    <td>${badge(e.estado)}</td>
+    <td><select data-cambiar-estado="${e.id}" style="width:auto">
+      ${ESTADOS.map(s => `<option ${s === e.estado ? 'selected' : ''}>${s}</option>`).join('')}
+    </select></td>
+  </tr>`).join('');
+
+  el('view-estado').innerHTML =
+    toolbar({ title: 'Estado', sub: 'Consulta y cambia el estado de cada equipo.', tbl: 'tblEstado', exportEntity: 'equipos' }) +
+    `<div class="state-grid">${cards}</div>` +
+    table('tblEstado', ['Código', 'Ubicación', 'Responsable', 'Estado actual', 'Cambiar a'], rows);
+}
+
+function renderUbicacion() {
+  const ubics = [...new Set([...UBICACIONES, ...db.equipos.map(e => e.ubicacion)].filter(Boolean))];
+  const cards = ubics.map(u => {
+    const lista = db.equipos.filter(e => e.ubicacion === u);
+    return `<div class="card loc-card">
+      <div class="loc-head"><h3>${esc(u)}</h3><span>${lista.length} equipo(s)</span></div>
+      ${lista.length
+        ? `<ul>${lista.map(e => `<li><span><strong>${esc(e.codigo)}</strong> · ${esc(e.responsable) || 'Sin responsable'}</span>${badge(e.estado)}</li>`).join('')}</ul>`
+        : '<p class="muted">Sin equipos asignados</p>'}
+    </div>`;
+  }).join('');
+
+  el('view-ubicacion').innerHTML =
+    toolbar({ title: 'Ubicación', sub: 'Equipos agrupados por lugar físico.', exportEntity: 'equipos' }) +
+    `<div class="loc-grid">${cards}</div>`;
+}
+
+function renderMant() {
+  const rows = [...db.mantenimiento]
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+    .map(m => `<tr>
+      <td>${esc(m.fecha)}</td>
+      <td><strong>${esc(m.equipo)}</strong></td>
+      <td><span class="tag">${esc(m.tipo)}</span></td>
+      <td>${esc(m.tecnico) || '—'}</td>
+      <td class="desc">${esc(m.descripcion)}</td>
+      <td>${m.costo ? '$ ' + esc(m.costo) : '—'}</td>
+      <td>${actionsCell('mantenimiento', m.id)}</td>
+    </tr>`).join('');
+
+  el('view-mantenimiento').innerHTML =
+    toolbar({ title: 'Mantenimientos', sub: 'Historial de mantenimientos preventivos y correctivos.', tbl: 'tblMant', exportEntity: 'mantenimiento', newEntity: 'mantenimiento' }) +
+    table('tblMant', ['Fecha', 'Equipo', 'Tipo', 'Técnico', 'Descripción', 'Costo', ''], rows);
+}
+
+function renderUsuarios() {
+  const rows = db.usuarios.map(u => {
+    const n = db.equipos.filter(e => e.responsable === u.nombre).length;
+    return `<tr>
+      <td><strong>${esc(u.nombre)}</strong></td>
+      <td>${esc(u.rol)}</td>
+      <td>${esc(u.area) || '—'}</td>
+      <td>${esc(u.correo) || '—'}</td>
+      <td>${n}</td>
+      <td>${actionsCell('usuarios', u.id)}</td>
+    </tr>`;
+  }).join('');
+
+  el('view-usuarios').innerHTML =
+    toolbar({ title: 'Usuarios', sub: 'Personas responsables de los equipos.', tbl: 'tblUsuarios', exportEntity: 'usuarios', newEntity: 'usuarios' }) +
+    table('tblUsuarios', ['Nombre', 'Rol', 'Área', 'Correo', 'Equipos a cargo', ''], rows);
+}
+
+const RENDER = {
+  dashboard: renderDashboard,
+  equipos: renderEquipos,
+  estado: renderEstado,
+  ubicacion: renderUbicacion,
+  mantenimiento: renderMant,
+  usuarios: renderUsuarios
+};
+
+let editing = null;
+
+function fieldHTML(f, val) {
+  const req = f.required ? 'required' : '';
+  const opts = f.options || (f.optionsFn ? f.optionsFn() : []);
+  let input;
+  if (f.type === 'select') {
+    input = `<select name="${f.k}" ${req}><option value="">Seleccionar…</option>
+      ${opts.map(o => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  } else if (f.type === 'list') {
+    input = `<input name="${f.k}" value="${esc(val)}" list="dl-${f.k}" ${req} autocomplete="off">
+      <datalist id="dl-${f.k}">${opts.map(o => `<option value="${esc(o)}">`).join('')}</datalist>`;
+  } else if (f.type === 'textarea') {
+    input = `<textarea name="${f.k}" rows="3" ${req}>${esc(val)}</textarea>`;
+  } else {
+    input = `<input name="${f.k}" type="${f.type}" value="${esc(val)}" ${req} ${f.type === 'number' ? 'min="0"' : ''}>`;
+  }
+  return `<label class="${f.type === 'textarea' ? 'full' : ''}"><span>${f.label}</span>${input}</label>`;
+}
+
+function openForm(entity, id) {
+  const sch = SCHEMAS[entity];
+  const item = id ? db[entity].find(x => x.id === id) : {};
+  editing = { entity, id };
+  el('modalTitle').textContent = (id ? 'Editar ' : 'Nuevo ') + sch.title.toLowerCase();
+  el('modalBody').innerHTML = sch.fields.map(f => fieldHTML(f, item[f.k] ?? '')).join('');
+  el('modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  el('modal').classList.add('hidden');
+  editing = null;
+}
+
+el('modalForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const { entity, id } = editing;
+  const data = {};
+  SCHEMAS[entity].fields.forEach(f => data[f.k] = e.target.elements[f.k].value.trim());
+
+  if (entity === 'equipos' && db.equipos.some(x => x.codigo.toLowerCase() === data.codigo.toLowerCase() && x.id !== id)) {
+    toast('Ya existe un equipo con ese código', true);
+    return;
+  }
+
+  if (id) Object.assign(db[entity].find(x => x.id === id), data);
+  else db[entity].push({ id: uid(), ...data });
+
+  save();
+  closeModal();
+  toast('Registro guardado');
+  show(currentView);
+});
+
+el('modalClose').addEventListener('click', closeModal);
+el('modalCancel').addEventListener('click', closeModal);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function removeItem(entity, id) {
+  if (!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  db[entity] = db[entity].filter(x => x.id !== id);
+  save();
+  toast('Registro eliminado');
+  show(currentView);
+}
+
+function exportCSV(entity) {
+  const cols = CSV_COLS[entity];
+  const cell = v => {
+    const s = String(v ?? '');
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [cols.map(c => cell(c[1])).join(';')];
+  db[entity].forEach(r => lines.push(cols.map(c => cell(r[c[0]])).join(';')));
+
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${entity}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV exportado');
+}
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  const ed = t.closest('[data-edit]');
+  if (ed) return openForm(ed.dataset.edit, ed.dataset.id);
+  const dl = t.closest('[data-del]');
+  if (dl) return removeItem(dl.dataset.del, dl.dataset.id);
+  const nw = t.closest('[data-new]');
+  if (nw) return openForm(nw.dataset.new, null);
+  const ex = t.closest('[data-export]');
+  if (ex) return exportCSV(ex.dataset.export);
+  const fe = t.closest('[data-filter-estado]');
+  if (fe) { estadoFiltro = fe.dataset.filterEstado; renderEstado(); }
+});
+
+document.addEventListener('change', e => {
+  if (e.target.matches('[data-cambiar-estado]')) {
+    const eq = db.equipos.find(x => x.id === e.target.dataset.cambiarEstado);
+    if (eq) { eq.estado = e.target.value; save(); toast('Estado actualizado'); renderEstado(); }
+  }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.matches('[data-filter-table]')) {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll(`#${e.target.dataset.filterTable} tbody tr`).forEach(tr => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+});
+
+if (sessionStorage.getItem('auth') === '1') enter();
+</script>
+</body>
+</html>

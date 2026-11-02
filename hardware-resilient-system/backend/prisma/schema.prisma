@@ -1,0 +1,48 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  DEGRADED
+  MAINTENANCE
+}
+
+model Device {
+  id            String         @id @default(uuid())
+  serialNumber  String         @unique
+  name          String
+  model         String
+  ipAddress     String
+  macAddress    String
+  location      String
+  status        DeviceStatus   @default(OFFLINE)
+  lastHeartbeat DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  telemetryLogs TelemetryLog[]
+
+  @@index([status])
+  @@index([serialNumber])
+}
+
+model TelemetryLog {
+  id            String   @id @default(uuid())
+  deviceId      String
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  cpuUsage      Float
+  ramUsage      Float
+  diskUsage     Float
+  uptimeSeconds Float    @default(0.0)
+  temperature   Float?
+  recordedAt    DateTime @default(now())
+
+  @@index([deviceId, recordedAt])
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Hardware Resilient System",
+  "description": "Production-grade critical hardware telemetry, device management, and resilient monitoring system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
