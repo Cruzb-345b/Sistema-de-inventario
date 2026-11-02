@@ -4,16 +4,18 @@
 # ==========================================================
 
 param (
-    [string]$ConfigPath = "$PSScriptRoot\..\config.ini"
+    [string]$ConfigPath = "$PSScriptRoot\..\config.ini",
+    [switch]$Silent = $false
 )
 
-$Host.UI.RawUI.WindowTitle = "Hardware Resilient — Agente USB Telemetria"
-
-Write-Host ""
-Write-Host "  ======================================================" -ForegroundColor Cyan
-Write-Host "   CONECTOR USB DE HARDWARE RESILIENTE — NEON CLOUD    " -ForegroundColor Green
-Write-Host "  ======================================================" -ForegroundColor Cyan
-Write-Host ""
+if (-not $Silent) {
+    $Host.UI.RawUI.WindowTitle = "Hardware Resilient — Agente USB Telemetria"
+    Write-Host ""
+    Write-Host "  ======================================================" -ForegroundColor Cyan
+    Write-Host "   CONECTOR USB DE HARDWARE RESILIENTE — NEON CLOUD    " -ForegroundColor Green
+    Write-Host "  ======================================================" -ForegroundColor Cyan
+    Write-Host ""
+}
 
 # 1. Leer Configuración
 $ServerUrl = "http://192.168.100.36:3000"
@@ -34,25 +36,27 @@ if (Test-Path $ConfigPath) {
     }
 }
 
-Write-Host "  [+] Servidor destino: " -NoNewline
-Write-Host "$ServerUrl" -ForegroundColor Yellow
-Write-Host "  [+] Intervalo: " -NoNewline
-Write-Host "$ReportInterval segundos" -ForegroundColor Yellow
-Write-Host ""
+if (-not $Silent) {
+    Write-Host "  [+] Servidor destino: " -NoNewline
+    Write-Host "$ServerUrl" -ForegroundColor Yellow
+    Write-Host "  [+] Intervalo: " -NoNewline
+    Write-Host "$ReportInterval segundos" -ForegroundColor Yellow
+    Write-Host ""
+}
 
 # 2. Probar conexión al backend
-Write-Host "  [*] Verificando conexion al servidor..." -ForegroundColor Gray
 try {
     $health = Invoke-RestMethod -Uri "$ServerUrl/api/health" -Method Get -TimeoutSec 5 -ErrorAction Stop
-    Write-Host "  [OK] Servidor conectado y activo (Neon: $($health.neon.branch))" -ForegroundColor Green
+    if (-not $Silent) {
+        Write-Host "  [OK] Servidor conectado y activo (Neon: $($health.neon.branch))" -ForegroundColor Green
+    }
 } catch {
-    Write-Host "  [!] Advertencia: No se pudo verificar /api/health. Intentando conectar de todos modos..." -ForegroundColor Yellow
+    if (-not $Silent) {
+        Write-Host "  [!] Advertencia: No se pudo verificar /api/health. Intentando conectar de todos modos..." -ForegroundColor Yellow
+    }
 }
 
 # 3. Detectar Hardware del Computador
-Write-Host ""
-Write-Host "  [*] Detectando hardware de este equipo..." -ForegroundColor Gray
-
 $ComputerName = $env:COMPUTERNAME
 if (-not $ComputerName) { $ComputerName = "PC-DESCONOCIDO" }
 
@@ -80,17 +84,18 @@ if (-not $MAC) { $MAC = "AA:BB:CC:DD:EE:01" }
 
 $Location = "Nodo USB - $env:USERNAME"
 
-Write-Host "  ------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "   Serial:    $Serial" -ForegroundColor White
-Write-Host "   Nombre:    $ComputerName" -ForegroundColor White
-Write-Host "   Modelo:    $Model" -ForegroundColor White
-Write-Host "   IP:        $IP" -ForegroundColor White
-Write-Host "   MAC:       $MAC" -ForegroundColor White
-Write-Host "  ------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host ""
+if (-not $Silent) {
+    Write-Host "  ------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "   Serial:    $Serial" -ForegroundColor White
+    Write-Host "   Nombre:    $ComputerName" -ForegroundColor White
+    Write-Host "   Modelo:    $Model" -ForegroundColor White
+    Write-Host "   IP:        $IP" -ForegroundColor White
+    Write-Host "   MAC:       $MAC" -ForegroundColor White
+    Write-Host "  ------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ""
+}
 
 # 4. Registrar Equipo en Neon
-Write-Host "  [*] Registrando equipo en Neon PostgreSQL..." -ForegroundColor Gray
 $regBody = @{
     serialNumber = $Serial
     name = $ComputerName
@@ -103,24 +108,81 @@ $regBody = @{
 
 try {
     $regResponse = Invoke-RestMethod -Uri "$ServerUrl/api/devices" -Method Post -Body $regBody -ContentType "application/json" -TimeoutSec 10 -ErrorAction Stop
-    Write-Host "  [EXITO] Equipo registrado exitosamente en Neon!" -ForegroundColor Green
+    if (-not $Silent) {
+        Write-Host "  [EXITO] Equipo registrado exitosamente en Neon!" -ForegroundColor Green
+    }
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
-    if ($statusCode -eq 409 -or $_.ErrorDetails.Message -match "Unique|duplicate|conflict") {
-        Write-Host "  [INFO] El equipo ya existia registrado. Procediendo con telemetria..." -ForegroundColor Cyan
-    } else {
-        Write-Host "  [WARN] Registro respondio: $($_.Exception.Message). Continuando con reporte..." -ForegroundColor Yellow
+    if (-not $Silent) {
+        if ($statusCode -eq 409 -or $_.ErrorDetails.Message -match "Unique|duplicate|conflict") {
+            Write-Host "  [INFO] El equipo ya existia registrado. Procediendo con telemetria..." -ForegroundColor Cyan
+        } else {
+            Write-Host "  [WARN] Registro respondio: $($_.Exception.Message). Continuando..." -ForegroundColor Yellow
+        }
     }
 }
 
-Write-Host ""
-Write-Host "  ======================================================" -ForegroundColor Green
-Write-Host "   TRANSMISION DE TELEMETRIA EN VIVO INICIADA            " -ForegroundColor Green
-Write-Host "   (Presiona Ctrl+C para detener el agente)              " -ForegroundColor Gray
-Write-Host "  ======================================================" -ForegroundColor Green
-Write-Host ""
+# 5. Modo de Instalación (Preguntar solo si es interactivo)
+if (-not $Silent) {
+    Write-Host ""
+    Write-Host "  ¿Como deseas conectar este equipo a la telemetria?" -ForegroundColor Yellow
+    Write-Host "  [1] Permanente en Segundo Plano (Recomendado: Puedes retirar la USB, reporta 24/7)" -ForegroundColor White
+    Write-Host "  [2] Temporal (En vivo en esta ventana mientras la USB este conectada)" -ForegroundColor White
+    Write-Host ""
+    $choice = Read-Host "  Selecciona una opcion [1 o 2] (Presiona Enter para 1)"
+    if (-not $choice) { $choice = "1" }
 
-# 5. Bucle continuo de Telemetría
+    if ($choice -eq "1") {
+        Write-Host ""
+        Write-Host "  [*] Instalando servicio en segundo plano..." -ForegroundColor Gray
+        $installDir = "$env:LOCALAPPDATA\HardwareResilient"
+        if (-not (Test-Path $installDir)) { New-Item -ItemType Directory -Path $installDir -Force | Out-Null }
+        
+        Copy-Item -Path $PSCommandPath -Destination "$installDir\agent_windows.ps1" -Force
+        Copy-Item -Path $ConfigPath -Destination "$installDir\config.ini" -Force
+        
+        # Script VBS para arranque 100% invisible sin ventana negra
+        $vbsCode = @"
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""$installDir\agent_windows.ps1"" -ConfigPath ""$installDir\config.ini"" -Silent", 0, False
+"@
+        Set-Content -Path "$installDir\launcher.vbs" -Value $vbsCode -Encoding ASCII
+        
+        # Acceso directo en la carpeta de Inicio de Windows (arranca solo al prender el PC)
+        $startupFolder = [Environment]::GetFolderPath('Startup')
+        $shortcutPath = "$startupFolder\HardwareResilient.lnk"
+        $wsh = New-Object -ComObject WScript.Shell
+        $shortcut = $wsh.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = "wscript.exe"
+        $shortcut.Arguments = "`"$installDir\launcher.vbs`""
+        $shortcut.WorkingDirectory = $installDir
+        $shortcut.WindowStyle = 7
+        $shortcut.Save()
+        
+        # Detener procesos viejos si existían y lanzar el nuevo
+        Get-Process powershell -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*HardwareResilient*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Process "wscript.exe" -ArgumentList "`"$installDir\launcher.vbs`""
+        
+        Write-Host ""
+        Write-Host "  ======================================================" -ForegroundColor Green
+        Write-Host "   ¡EQUIPO AGREGADO A LA TELEMETRIA CON EXITO!           " -ForegroundColor Green
+        Write-Host "  ======================================================" -ForegroundColor Green
+        Write-Host "  [OK] El computador ya esta enviando telemetria a Neon en segundo plano." -ForegroundColor Cyan
+        Write-Host "  [OK] YA PUEDES RETIRAR LA MEMORIA USB." -ForegroundColor Yellow
+        Write-Host "  [OK] El agente reportara 24/7 cada vez que el equipo se encienda." -ForegroundColor Cyan
+        Write-Host ""
+        Read-Host "  Presiona Enter para cerrar esta ventana..."
+        exit 0
+    }
+
+    Write-Host ""
+    Write-Host "  ======================================================" -ForegroundColor Green
+    Write-Host "   TRANSMISION EN VIVO (Presiona Ctrl+C para detener)   " -ForegroundColor Green
+    Write-Host "  ======================================================" -ForegroundColor Green
+    Write-Host ""
+}
+
+# 6. Bucle continuo de Telemetría
 $step = 0
 while ($true) {
     try {
@@ -148,7 +210,6 @@ while ($true) {
             $diskUsage = 40.0
         }
 
-        # Temperatura simulada/aproximada si no hay sensor ACPI
         $temp = [math]::Round(36.0 + ($cpu * 0.35), 1)
 
         $telemetryBody = @{
@@ -161,12 +222,16 @@ while ($true) {
 
         $res = Invoke-RestMethod -Uri "$ServerUrl/api/devices/$Serial/telemetry" -Method Post -Body $telemetryBody -ContentType "application/json" -TimeoutSec 5 -ErrorAction Stop
 
-        $timeStr = (Get-Date).ToString("HH:mm:ss")
-        $step++
-        Write-Host "  [$timeStr #$step] -> CPU: $cpu% | RAM: $ramUsage% | Disco: $diskUsage% | Temp: $temp`°C -> [GUARDADO EN NEON]" -ForegroundColor Cyan
+        if (-not $Silent) {
+            $timeStr = (Get-Date).ToString("HH:mm:ss")
+            $step++
+            Write-Host "  [$timeStr #$step] -> CPU: $cpu% | RAM: $ramUsage% | Disco: $diskUsage% | Temp: $temp`°C -> [GUARDADO EN NEON]" -ForegroundColor Cyan
+        }
     } catch {
-        $timeStr = (Get-Date).ToString("HH:mm:ss")
-        Write-Host "  [$timeStr] [REINTENTO] No se pudo enviar lectura a Neon: $($_.Exception.Message)" -ForegroundColor Red
+        if (-not $Silent) {
+            $timeStr = (Get-Date).ToString("HH:mm:ss")
+            Write-Host "  [$timeStr] [REINTENTO] Error enviando a Neon: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 
     Start-Sleep -Seconds $ReportInterval
