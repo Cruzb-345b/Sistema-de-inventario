@@ -1,0 +1,53 @@
+===================================================================
+ 💾 KIT DE TELEMETRÍA USB — HARDWARE RESILIENT & NEON POSTGRESQL
+===================================================================
+
+Este kit permite conectar CUALQUIER computadora a tu sistema de
+inventario simplemente conectando la memoria USB, SIN necesidad de:
+  ✗ Instalar Python o Node.js
+  ✗ Clonar el repositorio
+  ✗ Copiar ningún archivo en el computador destino
+
+-------------------------------------------------------------------
+1. PREPARAR TU MEMORIA USB (Solo una vez)
+-------------------------------------------------------------------
+Copia todos los archivos de esta carpeta "usb_telemetria" a la
+raíz de tu memoria USB (Pendrive).
+
+En tu USB verás:
+  📁 scripts/
+  ⚙️ config.ini
+  🚀 CONECTAR_WINDOWS.bat
+  🚀 CONECTAR_LINUX.sh
+  📄 LEEME.txt
+
+-------------------------------------------------------------------
+2. CÓMO AGREGAR UN COMPUTADOR CON WINDOWS
+-------------------------------------------------------------------
+1. Conecta la USB en el computador con Windows.
+2. Abre la USB y haz DOBLE CLIC en:
+      CONECTAR_WINDOWS.bat
+3. ¡Listo! El script:
+   - Detecta automáticamente el nombre, serial, IP y modelo del PC.
+   - Registra el equipo en Neon PostgreSQL.
+   - Comienza a enviar en vivo el uso de CPU, RAM y Disco cada 5s.
+   - El equipo aparecerá de inmediato en el Dashboard web.
+
+-------------------------------------------------------------------
+3. CÓMO AGREGAR UN COMPUTADOR CON LINUX / MAC
+-------------------------------------------------------------------
+1. Conecta la USB en el computador con Linux.
+2. Abre una terminal dentro de la USB y ejecuta:
+      ./CONECTAR_LINUX.sh
+3. ¡Listo! Usará herramientas nativas del sistema (/proc y curl)
+   para registrar el computador y reportar telemetría a Neon.
+
+-------------------------------------------------------------------
+4. CAMBIAR LA DIRECCIÓN DEL SERVIDOR
+-------------------------------------------------------------------
+Si vas a monitorear computadores fuera de tu red Wi-Fi o mediante
+un túnel/dominio público en internet, abre el archivo:
+   config.ini
+y edita la línea:
+   SERVER_URL=https://tu-dominio-o-tunel.com
+===================================================================
