@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DeviceDashboard } from './components/DeviceDashboard';
+import { AuthPortal } from './components/AuthPortal';
+import { getStoredUser, logoutUser, AuthUser } from './lib/auth';
 import {
   Server,
   FolderTree,
@@ -12,6 +14,7 @@ import {
   Play,
   RotateCcw,
 } from 'lucide-react';
+
 
 type ActiveTab = 'dashboard' | 'codebase' | 'security' | 'agent';
 
@@ -285,9 +288,11 @@ export class ErrorBoundary extends Component<
 };
 
 export const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedFile, setSelectedFile] = useState<string>('backend/src/utils/csvSanitizer.ts');
   const [copiedFile, setCopiedFile] = useState<boolean>(false);
+
 
   // Security Lab Interactive Testing State
   const [testFormulaInput, setTestFormulaInput] = useState<string>(
@@ -362,6 +367,10 @@ export const App: React.FC = () => {
     }
   };
 
+  if (!currentUser) {
+    return <AuthPortal onAuthenticated={(user) => setCurrentUser(user)} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0b0f17] text-gray-100 font-sans flex flex-col">
       {/* Top System Bar in Dark Theme */}
@@ -382,62 +391,90 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Navigation Tabs */}
-            <div className="flex items-center space-x-1 font-mono text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-3 py-1.5 border cursor-pointer ${
-                  activeTab === 'dashboard'
-                    ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
-                    : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
-                }`}
-              >
-                Dashboard & Cluster
-              </button>
+            {/* Navigation Tabs and User Session Controls */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-1 font-mono text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-3 py-1.5 border cursor-pointer ${
+                    activeTab === 'dashboard'
+                      ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
+                      : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
+                  }`}
+                >
+                  Dashboard & Cluster
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('codebase')}
-                className={`px-3 py-1.5 border cursor-pointer ${
-                  activeTab === 'codebase'
-                    ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
-                    : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
-                }`}
-              >
-                <FolderTree className="w-3.5 h-3.5 inline mr-1" />
-                Codebase Topography
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('codebase')}
+                  className={`px-3 py-1.5 border cursor-pointer ${
+                    activeTab === 'codebase'
+                      ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
+                      : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
+                  }`}
+                >
+                  <FolderTree className="w-3.5 h-3.5 inline mr-1" />
+                  Codebase Topography
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('security')}
-                className={`px-3 py-1.5 border cursor-pointer ${
-                  activeTab === 'security'
-                    ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
-                    : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5 inline mr-1" />
-                CSV Security Lab
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('security')}
+                  className={`px-3 py-1.5 border cursor-pointer ${
+                    activeTab === 'security'
+                      ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
+                      : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 inline mr-1" />
+                  CSV Security Lab
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('agent')}
-                className={`px-3 py-1.5 border cursor-pointer ${
-                  activeTab === 'agent'
-                    ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
-                    : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
-                }`}
-              >
-                <Terminal className="w-3.5 h-3.5 inline mr-1" />
-                Agent Daemon Lab
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('agent')}
+                  className={`px-3 py-1.5 border cursor-pointer ${
+                    activeTab === 'agent'
+                      ? 'bg-gray-100 text-gray-950 font-bold border-gray-200'
+                      : 'bg-[#131926] text-gray-400 border-gray-800 hover:bg-gray-800 hover:text-gray-200'
+                  }`}
+                >
+                  <Terminal className="w-3.5 h-3.5 inline mr-1" />
+                  Agent Daemon Lab
+                </button>
+              </div>
+
+              {/* User Session & Logout Controls */}
+              <div className="flex items-center space-x-2 pl-3 border-l border-gray-800">
+                <div className="hidden lg:block text-right">
+                  <div className="text-[11px] font-bold text-gray-200 truncate max-w-[130px] font-mono">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-mono flex items-center justify-end space-x-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>{currentUser.role}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await logoutUser();
+                    setCurrentUser(null);
+                  }}
+                  className="px-2.5 py-1 bg-red-950/40 hover:bg-red-900/60 border border-red-800/80 text-red-200 text-xs font-mono transition-colors cursor-pointer"
+                  title="Cerrar sesión segura y bloquear gateway"
+                >
+                  Cerrar Sesión
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </nav>
+
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

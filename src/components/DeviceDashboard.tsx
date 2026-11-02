@@ -18,6 +18,8 @@ import {
   AlertCircle,
   FileText,
 } from 'lucide-react';
+import { getAuthHeaders } from '../lib/auth';
+
 
 export type DeviceStatus = 'ONLINE' | 'OFFLINE' | 'DEGRADED' | 'MAINTENANCE';
 
@@ -242,8 +244,11 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
   const fetchDevices = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:4000/api/devices?limit=100');
+      const res = await fetch('http://localhost:4000/api/devices?limit=100', {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
+
         const json = (await res.json()) as { success: boolean; data: ApiDevice[] };
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
           const mapped: HardwareDevice[] = json.data.map((d: ApiDevice) => {
@@ -303,8 +308,11 @@ export const DeviceDashboard: React.FC<DeviceDashboardProps> = () => {
   // Fetch live telemetry stream from /api/telemetry/feed
   const fetchTelemetryFeed = React.useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/telemetry/feed?limit=25');
+      const res = await fetch('http://localhost:4000/api/telemetry/feed?limit=25', {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
+
         const json = (await res.json()) as { success: boolean; data: ApiTelemetryLog[] };
         if (json.success && Array.isArray(json.data)) {
           setTelemetryFeed(json.data);

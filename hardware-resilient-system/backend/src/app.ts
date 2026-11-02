@@ -1,5 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import authRoutes from './routes/auth.routes';
 import deviceRoutes from './routes/device.routes';
 import { DeviceController } from './controllers/device.controller';
 import { errorHandler } from './middleware/errorHandler';
@@ -29,8 +30,9 @@ export function createApp(): Application {
     });
   });
 
-  // Neon Auth status probe
-  app.get('/api/auth/status', getAuthStatus);
+  // Authentication endpoints
+  app.use('/api/auth', authRoutes);
+
 
   // Device & telemetry API routes
   app.use('/api/devices', deviceRoutes);
