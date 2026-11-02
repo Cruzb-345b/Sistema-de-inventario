@@ -12,10 +12,12 @@
     "db:push": "npm --prefix hardware-resilient-system/backend run prisma:push",
     "db:seed": "npm --prefix hardware-resilient-system/backend run prisma:seed",
     "build": "vite build",
+    "deploy": "vite build && cp dist/index.html dist/404.html && touch dist/.nojekyll && gh-pages -d dist",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
+
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@neon/auth": "^0.8.2",
