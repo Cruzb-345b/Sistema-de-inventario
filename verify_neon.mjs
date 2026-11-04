@@ -1,3 +1,4 @@
+//escripts de verificacion de conectividad con el servidor en la nube
 import { PrismaClient } from './hardware-resilient-system/backend/node_modules/@prisma/client/default.js';
 
 const prisma = new PrismaClient();
