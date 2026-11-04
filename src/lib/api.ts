@@ -4,7 +4,7 @@
  * - Seamlessly falls back to Neon's HTTP SQL Serverless Driver (`@neondatabase/serverless`)
  *   when deployed to static hosting like GitHub Pages (https://cruzb-345b.github.io/Sistema-de-inventario/).
  */
-
+/* el conector de red principal */
 import { neon } from '@neondatabase/serverless';
 
 export interface ApiTelemetryLog {
