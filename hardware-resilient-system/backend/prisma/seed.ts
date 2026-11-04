@@ -1,3 +1,4 @@
+//es un scritp de sembradosi esta vacia la base de datos se encarga de insertar datos de prueba
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
