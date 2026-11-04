@@ -1,3 +1,4 @@
+//es la fuente del backen y la que indica como mapear los datos
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
