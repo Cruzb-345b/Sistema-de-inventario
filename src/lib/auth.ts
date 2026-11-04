@@ -1,3 +1,4 @@
+// gestor de sesion de personas y perimisos 
 import { createAuthClient } from '@neon/auth';
 import { apiUrl } from './api';
 
