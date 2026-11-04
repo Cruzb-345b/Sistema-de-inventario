@@ -1,4 +1,4 @@
-//componente principal de la interfaz-define barra de navegacion
+/*componente principal de la interfaz-define barra de navegacion*/
 import React, { useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DeviceDashboard } from './components/DeviceDashboard';
