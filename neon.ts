@@ -1,20 +1,21 @@
+//escripts de verificacion de conectividad con el servidor en la nube
 import { defineConfig } from "@neon/config/v1";
 
 export default defineConfig({
-  // Declare your Neon services here
+  // Declara aquí tus servicios de Neon
   auth: true,
-  // Branch policy: per-branch tuning
+  // Política de rama: ajuste por rama
   branch: (branch) => {
     if (branch.isDefault) {
-      // Default branch: no overrides, uses project defaults
+      // Rama predeterminada: sin modificaciones; utiliza los valores predeterminados del proyecto.
       return {};
     }
     if (!branch.exists) {
-      // New non-default branches: auto-expire
-      // Run `neon checkout <name>` to create a new branch with these settings
+      // Nuevas ramas no predeterminadas: caducidad automática
+      // Ejecuta `neon checkout <name>` para crear una nueva rama con esta configuración.
       return { ttl: "7d" };
     }
-    // Existing branch: no changes
+    // Rama existente: sin cambios
     return {};
   },
 });
