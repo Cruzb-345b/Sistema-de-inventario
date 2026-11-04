@@ -1,3 +1,4 @@
+//es el archivo clave de la interfas visual del inventario 
 import React, { useState, useMemo, useEffect, useCallback, ChangeEvent } from 'react';
 import Papa from 'papaparse';
 import { z } from 'zod';
