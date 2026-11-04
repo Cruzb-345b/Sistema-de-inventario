@@ -1,3 +1,4 @@
+//formulario visual de autenticacion- correos, contraseñas
 import React, { useState } from 'react';
 import {
   Lock,
