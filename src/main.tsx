@@ -1,3 +1,4 @@
+// Es el conector inicial entre index.html y React.
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
