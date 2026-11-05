@@ -8,6 +8,14 @@ param (
     [switch]$Silent = $false
 )
 
+# Forzar compatibilidad con TLS 1.2 y TLS 1.3 para conexiones HTTPS seguras (Cloudflare / Nube)
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
+    if ([Enum]::IsDefined([Net.SecurityProtocolType], 'Tls13')) {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls13
+    }
+} catch {}
+
 if (-not $Silent) {
     $Host.UI.RawUI.WindowTitle = "Hardware Resilient - Agente USB Telemetria"
     Write-Host ""

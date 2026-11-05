@@ -43,8 +43,8 @@ export function createApp(): Application {
   });
 
 
-  // Fallback 404 handler for unknown routes
-  app.use((req: Request, res: Response) => {
+  // Fallback 404 handler for unknown API routes
+  app.all('/api/*', (req: Request, res: Response) => {
     res.status(404).json({
       success: false,
       statusCode: 404,
