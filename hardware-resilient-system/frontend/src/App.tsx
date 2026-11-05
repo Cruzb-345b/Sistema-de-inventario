@@ -459,31 +459,6 @@ export const App: React.FC = () => {
                   <span className="lg:hidden">Agente</span>
                 </button>
               </div>
-
-              {/* Operator Identity Badge & Optional Access Key Control */}
-              <div className="flex items-center space-x-2 pl-2 sm:pl-3 border-l border-gray-800">
-                <div className="hidden sm:block text-right">
-                  <div className="text-[11px] font-bold text-gray-200 truncate max-w-[140px] font-mono">
-                    {currentUser.name}
-                  </div>
-                  <div className="text-[10px] text-gray-400 font-mono flex items-center justify-end space-x-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-emerald-400 font-semibold">{currentUser.role}</span>
-                    <span className="text-gray-600">•</span>
-                    <span className="text-gray-400">ACTIVO</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(true)}
-                  className="px-2 py-1 bg-[#131926] hover:bg-gray-800 border border-gray-700/80 text-gray-300 hover:text-white text-xs font-mono transition-colors cursor-pointer flex items-center space-x-1"
-                  title="Gestionar credenciales o cambiar usuario"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="hidden md:inline">Credenciales</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
