@@ -65,9 +65,34 @@ Permite conectar cualquier computador nuevo o formateado simplemente conectando 
 - **Protección contra Inyección en Hojas de Cálculo (CSV Formula Injection):** Sanitización automática de prefijos peligrosos (`=`, `+`, `-`, `@`, `\t`, `\r`) en importación y exportación de CSV.
 - **Validación Estricta:** Esquemas Zod para la integridad de datos de hardware (Serial, MAC, IP, Modelo, Ubicación).
 - **Backoff Exponencial Progresivo:** Los agentes de telemetría reintentan automáticamente con pausas exponenciales (hasta 60s) ante cortes de red sin colapsar el sistema.
-
 ---
 
+```text
+frontend/                                     
+├── dist/                                # Cerpeta de produccion
+│   ├── assets/                          # JS y CSS para el navegador
+│   │   ├── index-*.js                   # Logica de estilo React y conectores 
+│   │   └── index-*.css                  # Hojas de estilo  procesadas 
+│   ├── index.html                       # HTML final 
+│   └── 404.html                         # Redireccion para navegacion SPA
+├── src/                                 # Codigo del desarrollo Frontend (fuente)
+│   ├── main.tsx                         # Punto inicial que conecta el index.html con React (marco o punto de apoyo)
+│   ├── App.tsx                          # Layout principal, enrutador y barra superior 
+│   ├── index.css                        # Estilos globales de la aplicacion 
+│   ├── components/                      # HTML e interfaces graficas (visibles)
+│   │   ├── DeviceDashboard.tsx          # Metricas en vivo, tarjetas y tablas de inventario
+│   │   ├── AuthPortal.tsx               # Formulario HTML de login y roles 
+│   │   └── ErrorBoundary.tsx            # Muro de contencion de fallos graficos (escudo)
+│   └── lib/                             # conectores y gestión de datos 
+│       ├── api.ts                       # Cliente HTTP / SQL serverless (Neon)
+│       └── auth.ts                      #  Monitoreo de inicio de sesión y roles
+├── index.html                           # Estructura de desarrolo principal 
+├── package.json                         # Script del proyecto y librerias
+├── tailwind.config.js                   # Configuración del diseño y colores CSS
+├── tsconfig.json                        # Reglas del copilador typeScrript
+└── vite.config.ts                       # configuración del servidor web y empaquetador 
+
+```
 ## 📁 Estructura del Repositorio
 
 ```text
@@ -91,7 +116,7 @@ Sistema-de-inventario/
 │   │   ├── agent.py                      # Daemon de telemetría con psutil y aislamiento
 │   │   ├── setup_telemetry.sh            # Asistente de instalación para Linux
 │   │   └── setup_telemetry.bat           # Asistente de instalación para Windows
-│   └── usb_telemetria/                   # 💾 Kit USB portátil (cero dependencias)
+│   └── usb_telemetria/                   # Kit USB portátil (cero dependencias)
 │       ├── CONECTAR_WINDOWS.bat          # Conector 1-clic para Windows
 │       ├── DESINSTALAR_WINDOWS.bat       # Desinstalador 1-clic para Windows
 │       ├── CONECTAR_LINUX.sh             # Conector para Linux
